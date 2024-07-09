@@ -1,0 +1,5 @@
+.envrc
+.direnv
+
+# don't accidentally upload my own books
+example_library
