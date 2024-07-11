@@ -20,6 +20,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -35,6 +36,7 @@ import (
 
 var (
 	dirRoot = flag.String("dir", "./books", "A directory with books.")
+	port    = flag.Int("p", 8080, "port to listen on")
 )
 
 func main() {
@@ -55,16 +57,16 @@ func main() {
 	router.GET(opdsv1Prefix.JoinPath("*path").String(), s.Handler)
 	router.GET(opdsv1Prefix.String(), s.Handler)
 	router.HEAD("/opds/v1/*all", func(c *gin.Context) {
-		//c.Header("Content-Type", "application/atom+xml; charset=utf-8")
+		c.Header("Content-Type", "application/atom+xml;profile=opds-catalog;kind=navigation")
 		c.Status(http.StatusOK)
 	})
 	router.HEAD("/opds/v1", func(c *gin.Context) {
-		//c.Header("Content-Type", "application/atom+xml; charset=utf-8")
+		c.Header("Content-Type", "application/atom+xml;profile=opds-catalog;kind=navigation")
 		c.Status(http.StatusOK)
 	})
 
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%d", *port),
 		Handler: router,
 	}
 
