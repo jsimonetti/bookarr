@@ -20,8 +20,6 @@ type fileStore struct {
 }
 
 func NewFileStore(rootDir string) storage.Store {
-	// Use the absoluteCanonical path of the dir parm as the trustedRoot.
-	// helpfull avoid http trasversal. https://github.com/dubyte/dir2opds/issues/17
 	rootDir, err := absoluteCanonicalPath(rootDir)
 	if err != nil {
 		log.Fatal(err)
@@ -32,7 +30,7 @@ func NewFileStore(rootDir string) storage.Store {
 func (fs *fileStore) File(path string) *storage.File {
 	fPath := filepath.Join(fs.rootDir, path)
 
-	safePath, err := sanitisePath(fPath, fs.rootDir)
+	safePath, err := verifyPath(fPath, fs.rootDir)
 	if err != nil {
 		log.Printf("File verifyPath err: %s", err)
 		return nil
@@ -59,7 +57,8 @@ func (fs *fileStore) File(path string) *storage.File {
 
 func (fs *fileStore) List(path string) ([]storage.Entry, error) {
 	fPath := filepath.Join(fs.rootDir, path)
-	safePath, err := sanitisePath(fPath, fs.rootDir)
+
+	safePath, err := verifyPath(fPath, fs.rootDir)
 	if err != nil {
 		log.Printf("File verifyPath err: %s", err)
 		return nil, err
@@ -105,7 +104,7 @@ func (fs *fileStore) Cover(path string) *storage.File {
 		return nil
 	}
 
-	safePath, err := sanitisePath(fPath, fs.rootDir)
+	safePath, err := verifyPath(fPath, fs.rootDir)
 	if err != nil {
 		log.Printf("File verifyPath err: %s", err)
 		return nil
@@ -144,7 +143,7 @@ func (fs *fileStore) Thumbnail(path string) *storage.File {
 func (fs *fileStore) PathType(path string) storage.PathType {
 	fPath := filepath.Join(fs.rootDir, path)
 
-	safePath, err := sanitisePath(fPath, fs.rootDir)
+	safePath, err := verifyPath(fPath, fs.rootDir)
 	if err != nil {
 		log.Printf("File verifyPath err: %s", err)
 		return storage.PathTypeNotExists

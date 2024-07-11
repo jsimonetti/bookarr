@@ -27,8 +27,6 @@ func init() {
 	_ = mime.AddExtensionType(".pdf", "application/pdf")
 }
 
-const xmlHeader = `<?xml version="1.0" encoding="utf-8"?>`
-
 type opdsv1Handler struct {
 	baseURL string
 	storage storage.Store
@@ -67,7 +65,7 @@ func (h *opdsv1Handler) Handler(c *gin.Context) {
 			c.DataFromReader(http.StatusOK, file.ContentLength, file.ContentType, file.Reader, nil)
 			return
 		}
-		c.Writer.Write([]byte(xmlHeader))
+		c.Writer.Write([]byte(xml.Header))
 		c.XML(http.StatusNotFound, nil)
 		return
 	case storage.PathTypeAquisition:
@@ -77,20 +75,20 @@ func (h *opdsv1Handler) Handler(c *gin.Context) {
 		feed = h.makeFeed(c)
 		contentType = storage.PathTypeNavigation
 	case storage.PathTypeNotExists:
-		c.Writer.Write([]byte(xmlHeader))
+		c.Writer.Write([]byte(xml.Header))
 		c.XML(http.StatusNotFound, nil)
 		return
 	}
 
-	c.Writer.Write([]byte(xmlHeader))
+	c.Data(http.StatusOK, string(contentType), []byte(xml.Header))
 
 	content, err := xml.Marshal(feed)
 	if err != nil {
 		log.Printf("xml.Marshal err: %s", err)
 		c.XML(http.StatusInternalServerError, nil)
 	}
-	c.Data(http.StatusOK, string(contentType), content)
 
+	c.Data(http.StatusOK, string(contentType), content)
 }
 
 func (h *opdsv1Handler) GetCover(c *gin.Context) {
@@ -169,16 +167,10 @@ func (h opdsv1Handler) makeFeed(c *gin.Context) *opdsv1.Feed {
 			})
 		}
 		if entry.Metadata.GetSubject() != "" {
-			e.Summary = &opdsv1.Summary{
-				Content: entry.Metadata.GetSubject(),
-				Type:    "text",
-			}
+			e.Summary = safeSummary(entry.Metadata.GetSubject())
 		}
 		if entry.Metadata.GetDescription() != "" {
-			e.Summary = &opdsv1.Summary{
-				Content: truncateText(entry.Metadata.GetDescription()) + "...",
-				Type:    "text",
-			}
+			e.Content = safeDescription(entry.Metadata.GetDescription())
 		}
 		if entry.Metadata.GetLanguage() != "" {
 			e.Language = entry.Metadata.GetLanguage()
@@ -189,11 +181,30 @@ func (h opdsv1Handler) makeFeed(c *gin.Context) *opdsv1.Feed {
 	return feed
 }
 
-const maxSummaryLength = 450
-
-func truncateText(s string) string {
-	if maxSummaryLength > len(s) {
-		return s
+func safeDescription(s string) *opdsv1.Content {
+	s = strings.TrimSpace(s)
+	t := "text"
+	if s[0] == '<' { // this is html
+		t = "html"
+		s = strings.Replace(s, "\n", "<br/>", -1) // some readers struggle with unicode newlines
+	} else {
+		s = strings.Replace(s, "\n", " ", -1) // some readers struggle with unicode newlines
 	}
-	return s[:strings.LastIndexAny(s[:maxSummaryLength], " .,:;-")]
+
+	e := &opdsv1.Content{
+		Content: s,
+		Type:    t,
+	}
+	return e
+}
+
+func safeSummary(s string) *opdsv1.Summary {
+	s = strings.TrimSpace(s)
+	s = strings.Replace(s, "\n", " ", -1) // some readers struggle with unicode newlines
+
+	e := &opdsv1.Summary{
+		Content: s,
+		Type:    "text", // summary is always text according to spec
+	}
+	return e
 }
