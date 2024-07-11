@@ -13,6 +13,7 @@ import (
 	"mime"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 type fileStore struct {
@@ -94,7 +95,52 @@ func (fs *fileStore) List(path string) ([]storage.Entry, error) {
 		entries = append(entries, e)
 	}
 
+	sortEntries(&entries)
 	return entries, nil
+}
+
+func sortEntries(entries *[]storage.Entry) {
+	sortByName(entries)
+	sortByAuthor(entries)
+}
+
+func sortByName(entries *[]storage.Entry) {
+	sortEntriesBy(entries, func(a, b storage.Entry) bool {
+		return a.Name < b.Name
+	})
+}
+
+func sortByAuthor(entries *[]storage.Entry) {
+	sortEntriesBy(entries, func(a, b storage.Entry) bool {
+		as := a.Metadata.GetCreator()
+		bs := b.Metadata.GetCreator()
+		return as < bs
+	})
+}
+
+func sortEntriesBy(entries *[]storage.Entry, less func(a, b storage.Entry) bool) {
+	sorter := &entrySorter{
+		entries: *entries,
+		less:    less,
+	}
+	sort.Sort(sorter)
+}
+
+type entrySorter struct {
+	entries []storage.Entry
+	less    func(a, b storage.Entry) bool
+}
+
+func (s *entrySorter) Len() int {
+	return len(s.entries)
+}
+
+func (s *entrySorter) Swap(i, j int) {
+	s.entries[i], s.entries[j] = s.entries[j], s.entries[i]
+}
+
+func (s *entrySorter) Less(i, j int) bool {
+	return s.less(s.entries[i], s.entries[j])
 }
 
 func (fs *fileStore) Cover(path string) *storage.File {
