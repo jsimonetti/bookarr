@@ -187,8 +187,10 @@ func safeDescription(s string) *opdsv1.Content {
 	if s[0] == '<' { // this is html
 		t = "html"
 		s = strings.Replace(s, "\n", "<br/>", -1) // some readers struggle with unicode newlines
+		s = strings.Replace(s, "\t", "", -1)      // some readers struggle with tabs
 	} else {
 		s = strings.Replace(s, "\n", " ", -1) // some readers struggle with unicode newlines
+		s = strings.Replace(s, "\t", "", -1)  // some readers struggle with tabs
 	}
 
 	e := &opdsv1.Content{

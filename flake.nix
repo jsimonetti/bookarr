@@ -8,6 +8,10 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        appVersion =
+          if (self ? shortRev)
+          then self.shortRev
+          else "development";
       in
       {
         formatter = treefmt-nix.lib.mkWrapper pkgs
@@ -23,14 +27,37 @@
           default = self.packages.${system}.bookarr;
 
           bookarr = pkgs.callPackage self {
-            src = self;
+            src = pkgs.lib.cleanSource self;
+            version = appVersion;
           };
         };
 
-        devShells = {
-          default = pkgs.mkShell {
-            buildInputs = with pkgs; [ go gopls go-tools gotools jq yq ];
+        devShells =
+          let
+            updateVendor = pkgs.writeScriptBin "nix-vendor-sri"
+              ''
+                #!${pkgs.runtimeShell}
+                set -eu
+
+                OUT=$(mktemp -d -t nar-hash-XXXXXX)
+                rm -rf "$OUT"
+
+                go mod vendor -o "$OUT"
+                go run tailscale.com/cmd/nardump --sri "$OUT" > go.mod.sri
+                rm -rf "$OUT"
+              '';
+          in
+          {
+            default = pkgs.mkShell {
+              buildInputs = with pkgs; [
+                go
+                gopls
+                go-tools
+                gotools
+                gotests
+                updateVendor
+              ];
+            };
           };
-        };
       });
 }
