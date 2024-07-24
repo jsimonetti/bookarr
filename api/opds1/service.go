@@ -187,10 +187,14 @@ func safeDescription(s string) *opdsv1.Content {
 	if s[0] == '<' { // this is html
 		t = "html"
 		s = strings.Replace(s, "\n", "<br/>", -1) // some readers struggle with unicode newlines
-		s = strings.Replace(s, "\t", "", -1)      // some readers struggle with tabs
 	} else {
 		s = strings.Replace(s, "\n", " ", -1) // some readers struggle with unicode newlines
-		s = strings.Replace(s, "\t", "", -1)  // some readers struggle with tabs
+	}
+
+	// remove all escaped characters as some readers don't like this
+	trim := []string{"\f", "\t", "\r", "\n"}
+	for _, t := range trim {
+		s = strings.Replace(s, t, "", -1)
 	}
 
 	e := &opdsv1.Content{
